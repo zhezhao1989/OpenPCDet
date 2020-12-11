@@ -51,7 +51,8 @@ class DataProcessor(object):
                 voxel_size=config.VOXEL_SIZE,
                 point_cloud_range=self.point_cloud_range,
                 max_num_points=config.MAX_POINTS_PER_VOXEL,
-                max_voxels=config.MAX_NUMBER_OF_VOXELS[self.mode]
+                max_voxels=config.MAX_NUMBER_OF_VOXELS[self.mode],
+                full_mean=False
             )
             grid_size = (self.point_cloud_range[3:6] - self.point_cloud_range[0:3]) / np.array(config.VOXEL_SIZE)
             self.grid_size = np.round(grid_size).astype(np.int64)

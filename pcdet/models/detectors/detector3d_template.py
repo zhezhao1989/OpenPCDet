@@ -126,7 +126,9 @@ class Detector3DTemplate(nn.Module):
             class_names=self.class_names,
             grid_size=model_info_dict['grid_size'],
             point_cloud_range=model_info_dict['point_cloud_range'],
-            predict_boxes_when_training=self.model_cfg.get('ROI_HEAD', False)
+            predict_boxes_when_training=self.model_cfg.get('ROI_HEAD', False),
+            voxel_size=self.dataset.voxel_size,
+            feature_map_stride=self.dataset.feature_map_stride
         )
         model_info_dict['module_list'].append(dense_head_module)
         return dense_head_module, model_info_dict
@@ -164,6 +166,37 @@ class Detector3DTemplate(nn.Module):
 
     def forward(self, **kwargs):
         raise NotImplementedError
+
+
+    def centerpoint_post_process(self, batch_dict):
+        post_process_cfg = self.model_cfg.POST_PROCESSING
+        batch_size = batch_dict['batch_size']
+        recall_dict = {}
+        pred_dicts = []
+        score_thresh = post_process_cfg.SCORE_THRESH
+        for index in range(batch_size):
+            final_boxes = batch_dict['final_pred_boxes'][index]
+            final_scores = batch_dict['final_pred_scores'][index]
+            final_labels = batch_dict['final_pred_labels'][index]
+            
+            mask = final_scores > score_thresh
+            final_labels = final_labels[mask]
+            final_scores = final_scores[mask]
+            final_boxes = final_boxes[mask]
+
+            recall_dict = self.generate_recall_record(
+                box_preds=final_boxes,
+                recall_dict=recall_dict, batch_index=index, data_dict=batch_dict,
+                thresh_list=post_process_cfg.RECALL_THRESH_LIST
+            )
+
+            record_dict = {
+                'pred_boxes': final_boxes,
+                'pred_scores': final_scores,
+                'pred_labels': final_labels
+            }
+            pred_dicts.append(record_dict)
+        return pred_dicts, recall_dict
 
     def post_processing(self, batch_dict):
         """
